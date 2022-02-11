@@ -29,6 +29,13 @@ function buildNatSecurityGroup() {
             ToPort: 443,
             CidrIp: '0.0.0.0/0',
           },
+          {
+            Description: 'permit outbound IMAPS to the Internet',
+            IpProtocol: 'tcp',
+            FromPort: 993,
+            ToPort: 993,
+            CidrIp: '0.0.0.0/0',
+          },
         ],
         SecurityGroupIngress: [
           {
@@ -45,6 +52,15 @@ function buildNatSecurityGroup() {
             IpProtocol: 'tcp',
             FromPort: 443,
             ToPort: 443,
+            SourceSecurityGroupId: {
+              Ref: 'AppSecurityGroup',
+            },
+          },
+          {
+            Description: 'permit inbound IAMPS from AppSecurityGroup',
+            IpProtocol: 'tcp',
+            FromPort: 993,
+            ToPort: 993,
             SourceSecurityGroupId: {
               Ref: 'AppSecurityGroup',
             },

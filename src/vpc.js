@@ -81,6 +81,13 @@ function buildAppSecurityGroup(prefixLists = null) {
       ToPort: 443,
       CidrIp: '0.0.0.0/0',
     },
+    {
+      Description: 'permit HTTPS outbound',
+      IpProtocol: 'tcp',
+      FromPort: 993,
+      ToPort: 993,
+      CidrIp: '0.0.0.0/0',
+    },
   ];
   if (prefixLists) {
     egress.push({
