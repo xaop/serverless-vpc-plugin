@@ -120,7 +120,7 @@ function buildBastionInstanceProfile({ name = 'BastionInstanceProfile' } = {}) {
  */
 function buildBastionLaunchConfiguration(
   keyPairName,
-  { name = 'BastionLaunchConfiguration', bastionHostEIP = true } = {},
+  { name = 'BastionLaunchConfiguration', bastionHostEIP = true, bastionHostSSHKeys = [] } = {},
 ) {
   return {
     [name]: {
@@ -162,6 +162,9 @@ function buildBastionLaunchConfiguration(
                 '#!/bin/bash -xe\n',
                 '/usr/bin/yum update -y\n',
                 '/usr/bin/yum install -y aws-cfn-bootstrap\n',
+                ...(bastionHostSSHKeys.length ?
+                  bastionHostSSHKeys.map((key) => `echo "${key}" >> /home/ec2-user/.ssh/authorized_keys \n`)
+                  : []),
                 ...(bastionHostEIP ? [
                   'EIP_ALLOCATION_ID=',
                   { 'Fn::GetAtt': ['BastionEIP', 'AllocationId'] },
@@ -293,7 +296,7 @@ function buildBastionSecurityGroup(sourceIp = '0.0.0.0/0', { name = 'BastionSecu
  * @param {Number} numZones Number of availability zones
  * @return {Promise}
  */
-async function buildBastion(keyPairName, bastionHostEIP, numZones = 0) {
+async function buildBastion(keyPairName, bastionHostEIP, bastionHostSSHKeys, numZones = 0) {
   if (numZones < 1) {
     return {};
   }
@@ -312,7 +315,7 @@ async function buildBastion(keyPairName, bastionHostEIP, numZones = 0) {
     ...buildBastionIamRole(),
     ...buildBastionInstanceProfile(),
     ...buildBastionSecurityGroup(publicIp),
-    ...buildBastionLaunchConfiguration(keyPairName, { bastionHostEIP }),
+    ...buildBastionLaunchConfiguration(keyPairName, { bastionHostEIP, bastionHostSSHKeys }),
     ...buildBastionAutoScalingGroup(numZones),
   };
 }

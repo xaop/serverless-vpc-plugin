@@ -45,6 +45,7 @@ class ServerlessVpcPlugin {
     let createNatInstance = false;
     let createBastionHost = false;
     let bastionHostEIP = true;
+    let bastionHostSSHKeys = [];
     let createParameters = false;
     let bastionHostKeyName = null;
     let exportOutputs = false;
@@ -94,6 +95,10 @@ class ServerlessVpcPlugin {
 
       if ('bastionHostEIP' in vpcConfig && typeof vpcConfig.bastionHostEIP === 'boolean') {
         ({ bastionHostEIP } = vpcConfig);
+      }
+
+      if (Array.isArray(vpcConfig.bastionHostSSHKeys)) {
+        bastionHostSSHKeys = vpcConfig.bastionHostSSHKeys;
       }
 
       if ('bastionHostKeyName' in vpcConfig && typeof vpcConfig.bastionHostKeyName === 'string') {
@@ -223,7 +228,7 @@ class ServerlessVpcPlugin {
         },
       };
 
-      Object.assign(resources, await buildBastion(bastionHostKeyName, bastionHostEIP, zones.length));
+      Object.assign(resources, await buildBastion(bastionHostKeyName, bastionHostEIP, bastionHostSSHKeys, zones.length));
     }
 
     if (services.length > 0) {
