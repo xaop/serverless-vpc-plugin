@@ -44,6 +44,7 @@ class ServerlessVpcPlugin {
     let createFlowLogs = false;
     let createNatInstance = false;
     let createBastionHost = false;
+    let bastionHostEIP = true;
     let createParameters = false;
     let bastionHostKeyName = null;
     let exportOutputs = false;
@@ -89,6 +90,10 @@ class ServerlessVpcPlugin {
 
       if ('createBastionHost' in vpcConfig && typeof vpcConfig.createBastionHost === 'boolean') {
         ({ createBastionHost } = vpcConfig);
+      }
+
+      if ('bastionHostEIP' in vpcConfig && typeof vpcConfig.bastionHostEIP === 'boolean') {
+        ({ bastionHostEIP } = vpcConfig);
       }
 
       if ('bastionHostKeyName' in vpcConfig && typeof vpcConfig.bastionHostKeyName === 'string') {
@@ -218,7 +223,7 @@ class ServerlessVpcPlugin {
         },
       };
 
-      Object.assign(resources, await buildBastion(bastionHostKeyName, zones.length));
+      Object.assign(resources, await buildBastion(bastionHostKeyName, bastionHostEIP, zones.length));
     }
 
     if (services.length > 0) {
@@ -321,6 +326,7 @@ class ServerlessVpcPlugin {
       outputs,
       buildOutputs({
         createBastionHost,
+        bastionHostEIP,
         createDbSubnet,
         subnetGroups,
         subnets: vpc.subnetIds,

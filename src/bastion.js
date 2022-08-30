@@ -33,15 +33,15 @@ function getPublicIp() {
  *
  * @return {Object}
  */
-function buildBastionEIP({ name = 'BastionEIP' } = {}) {
-  return {
+function buildBastionEIP({ name = 'BastionEIP', bastionHostEIP = true } = {}) {
+  return bastionHostEIP ? {
     [name]: {
       Type: 'AWS::EC2::EIP',
       Properties: {
         Domain: 'vpc',
       },
     },
-  };
+  } : {};
 }
 
 /**
@@ -120,7 +120,7 @@ function buildBastionInstanceProfile({ name = 'BastionInstanceProfile' } = {}) {
  */
 function buildBastionLaunchConfiguration(
   keyPairName,
-  { name = 'BastionLaunchConfiguration' } = {},
+  { name = 'BastionLaunchConfiguration', bastionHostEIP = true } = {},
 ) {
   return {
     [name]: {
@@ -162,14 +162,18 @@ function buildBastionLaunchConfiguration(
                 '#!/bin/bash -xe\n',
                 '/usr/bin/yum update -y\n',
                 '/usr/bin/yum install -y aws-cfn-bootstrap\n',
-                'EIP_ALLOCATION_ID=',
-                { 'Fn::GetAtt': ['BastionEIP', 'AllocationId'] },
-                '\n',
+                ...(bastionHostEIP ? [
+                  'EIP_ALLOCATION_ID=',
+                  { 'Fn::GetAtt': ['BastionEIP', 'AllocationId'] },
+                  '\n',
+                ] : []),
                 'INSTANCE_ID=`/usr/bin/curl -sq http://169.254.169.254/latest/meta-data/instance-id`\n',
                 // eslint-disable-next-line no-template-curly-in-string
-                '/usr/bin/aws ec2 associate-address --instance-id ${INSTANCE_ID} --allocation-id ${EIP_ALLOCATION_ID} --region ',
-                { Ref: 'AWS::Region' },
-                '\n',
+                ...(bastionHostEIP ? [
+                  '/usr/bin/aws ec2 associate-address --instance-id ${INSTANCE_ID} --allocation-id ${EIP_ALLOCATION_ID} --region ',
+                  { Ref: 'AWS::Region' },
+                  '\n',
+                ] : []),
                 '/opt/aws/bin/cfn-signal --exit-code 0 --stack ',
                 { Ref: 'AWS::StackName' },
                 ' --resource BastionAutoScalingGroup ',
@@ -285,10 +289,11 @@ function buildBastionSecurityGroup(sourceIp = '0.0.0.0/0', { name = 'BastionSecu
  * Build the bastion host
  *
  * @param {String} keyPairName Existing key pair name
+ * @param {Boolean}
  * @param {Number} numZones Number of availability zones
  * @return {Promise}
  */
-async function buildBastion(keyPairName, numZones = 0) {
+async function buildBastion(keyPairName, bastionHostEIP, numZones = 0) {
   if (numZones < 1) {
     return {};
   }
@@ -303,11 +308,11 @@ async function buildBastion(keyPairName, numZones = 0) {
   }
 
   return {
-    ...buildBastionEIP(),
+    ...buildBastionEIP({ bastionHostEIP }),
     ...buildBastionIamRole(),
     ...buildBastionInstanceProfile(),
     ...buildBastionSecurityGroup(publicIp),
-    ...buildBastionLaunchConfiguration(keyPairName),
+    ...buildBastionLaunchConfiguration(keyPairName, { bastionHostEIP }),
     ...buildBastionAutoScalingGroup(numZones),
   };
 }
