@@ -44,6 +44,8 @@ class ServerlessVpcPlugin {
     let createFlowLogs = false;
     let createNatInstance = false;
     let createBastionHost = false;
+    let bastionHostEIP = true;
+    let bastionHostSSHKeys = [];
     let createParameters = false;
     let bastionHostKeyName = null;
     let exportOutputs = false;
@@ -89,6 +91,14 @@ class ServerlessVpcPlugin {
 
       if ('createBastionHost' in vpcConfig && typeof vpcConfig.createBastionHost === 'boolean') {
         ({ createBastionHost } = vpcConfig);
+      }
+
+      if ('bastionHostEIP' in vpcConfig && typeof vpcConfig.bastionHostEIP === 'boolean') {
+        ({ bastionHostEIP } = vpcConfig);
+      }
+
+      if (Array.isArray(vpcConfig.bastionHostSSHKeys)) {
+        bastionHostSSHKeys = vpcConfig.bastionHostSSHKeys;
       }
 
       if ('bastionHostKeyName' in vpcConfig && typeof vpcConfig.bastionHostKeyName === 'string') {
@@ -165,7 +175,7 @@ class ServerlessVpcPlugin {
     if (createNatInstance) {
       this.serverless.cli.log('Finding latest VPC NAT Instance AMI...');
 
-      const images = await this.getImagesByName('amzn-ami-vpc-nat-hvm*');
+      const images = await this.getImagesByName('amzn-ami-vpc-nat*');
       if (Array.isArray(images) && images.length > 0) {
         [vpcNatAmi] = images;
       } else {
@@ -218,7 +228,7 @@ class ServerlessVpcPlugin {
         },
       };
 
-      Object.assign(resources, await buildBastion(bastionHostKeyName, zones.length));
+      Object.assign(resources, await buildBastion(bastionHostKeyName, bastionHostEIP, bastionHostSSHKeys, zones.length));
     }
 
     if (services.length > 0) {
@@ -321,6 +331,7 @@ class ServerlessVpcPlugin {
       outputs,
       buildOutputs({
         createBastionHost,
+        bastionHostEIP,
         createDbSubnet,
         subnetGroups,
         subnets: vpc.subnetIds,

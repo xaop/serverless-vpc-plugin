@@ -47,19 +47,21 @@ function appendSubnetGroups(subnetGroups, outputs) {
  *
  * @param {Object} outputs
  */
-function appendBastionHost(outputs) {
+function appendBastionHost(outputs, appendBastionHost) {
   // eslint-disable-next-line no-param-reassign
   outputs.BastionSSHUser = {
     Description: 'SSH username for the Bastion host',
     Value: 'ec2-user',
   };
-  // eslint-disable-next-line no-param-reassign
-  outputs.BastionEIP = {
-    Description: 'Public IP of Bastion host',
-    Value: {
-      Ref: 'BastionEIP',
-    },
-  };
+  if (appendBastionHost) {
+    // eslint-disable-next-line no-param-reassign
+    outputs.BastionEIP = {
+      Description: 'Public IP of Bastion host',
+      Value: {
+        Ref: 'BastionEIP',
+      },
+    };
+  }
 }
 
 /**
@@ -90,6 +92,7 @@ function appendExports(outputs) {
  */
 function buildOutputs({
   createBastionHost = false,
+  bastionHostEIP = true,
   createDbSubnet = true,
   subnetGroups = VALID_SUBNET_GROUPS,
   subnets = [],
@@ -126,7 +129,7 @@ function buildOutputs({
   }
 
   if (createBastionHost) {
-    appendBastionHost(outputs);
+    appendBastionHost(bastionHostEIP, outputs);
   }
 
   if (exportOutputs) {
