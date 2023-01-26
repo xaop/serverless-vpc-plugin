@@ -249,7 +249,7 @@ function buildBastionAutoScalingGroup(numZones = 0, { name = 'BastionAutoScaling
  * @param {Object} params
  * @return {Object}
  */
-function buildBastionSecurityGroup(sourceIp = '0.0.0.0/0', { name = 'BastionSecurityGroup' } = {}) {
+function buildBastionSecurityGroup(sourceIps = ['0.0.0.0/0'], { name = 'BastionSecurityGroup' } = {}) {
   return {
     [name]: {
       Type: 'AWS::EC2::SecurityGroup',
@@ -258,22 +258,24 @@ function buildBastionSecurityGroup(sourceIp = '0.0.0.0/0', { name = 'BastionSecu
         VpcId: {
           Ref: 'VPC',
         },
-        SecurityGroupIngress: [
-          {
-            Description: 'permit inbound SSH',
-            IpProtocol: 'tcp',
-            FromPort: 22,
-            ToPort: 22,
-            CidrIp: sourceIp,
-          },
-          {
-            Description: 'permit inbound ICMP',
-            IpProtocol: 'icmp',
-            FromPort: -1,
-            ToPort: -1,
-            CidrIp: sourceIp,
-          },
-        ],
+        SecurityGroupIngress: sourceIps.flatMap((sourceIp) =>
+          [
+            {
+              Description: 'permit inbound SSH',
+              IpProtocol: 'tcp',
+              FromPort: 22,
+              ToPort: 22,
+              CidrIp: sourceIp,
+            },
+            {
+              Description: 'permit inbound ICMP',
+              IpProtocol: 'icmp',
+              FromPort: -1,
+              ToPort: -1,
+              CidrIp: sourceIp,
+            },
+          ]
+        ),
         Tags: [
           {
             Key: 'Name',
@@ -296,25 +298,30 @@ function buildBastionSecurityGroup(sourceIp = '0.0.0.0/0', { name = 'BastionSecu
  * @param {Number} numZones Number of availability zones
  * @return {Promise}
  */
-async function buildBastion(keyPairName, bastionHostEIP, bastionHostSSHKeys, numZones = 0) {
+async function buildBastion(keyPairName, bastionHostEIP, bastionHostSSHKeys, bastionAllowedIPs, numZones = 0) {
   if (numZones < 1) {
     return {};
   }
-  let publicIp = '0.0.0.0/0';
-  try {
-    publicIp = await getPublicIp();
-    if (publicIp) {
-      publicIp = `${publicIp.trim()}/32`;
+  let publicIps = bastionAllowedIPs;
+
+  if (!publicIps) {
+    let publicIp = null;
+    try {
+      publicIp = await getPublicIp();
+      if (publicIp) {
+        publicIp = `${publicIp.trim()}/32`;
+      }
+      publicIps = [publicIp];
+    } catch (err) {
+      console.error('Unable to discover public IP address:', err);
     }
-  } catch (err) {
-    console.error('Unable to discover public IP address:', err);
   }
 
   return {
     ...buildBastionEIP({ bastionHostEIP }),
     ...buildBastionIamRole(),
     ...buildBastionInstanceProfile(),
-    ...buildBastionSecurityGroup(publicIp),
+    ...buildBastionSecurityGroup(publicIps),
     ...buildBastionLaunchConfiguration(keyPairName, { bastionHostEIP, bastionHostSSHKeys }),
     ...buildBastionAutoScalingGroup(numZones),
   };

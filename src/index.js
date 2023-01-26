@@ -48,6 +48,7 @@ class ServerlessVpcPlugin {
     let bastionHostSSHKeys = [];
     let createParameters = false;
     let bastionHostKeyName = null;
+    let bastionAllowedIPs = null;
     let exportOutputs = false;
     let subnetGroups = VALID_SUBNET_GROUPS;
 
@@ -103,6 +104,15 @@ class ServerlessVpcPlugin {
 
       if ('bastionHostKeyName' in vpcConfig && typeof vpcConfig.bastionHostKeyName === 'string') {
         ({ bastionHostKeyName } = vpcConfig);
+      }
+
+      if ('bastionAllowedIPs' in vpcConfig) {
+        if (typeof vpcConfig.bastionAllowedIPs === 'string') {
+          bastionAllowedIPs = [vpcConfig.bastionAllowedIPs];
+        }
+        if (typeof vpcConfig.bastionAllowedIPs === 'object' && vpcConfig.bastionAllowedIPs !== null && vpcConfig.bastionAllowedIPs.constructor.name === 'Array' && vpcConfig.bastionAllowedIPs.every((ip) => typeof ip === 'string')) {
+          ({ bastionAllowedIPs } = vpcConfig);
+        }
       }
 
       if (createBastionHost && !bastionHostKeyName) {
@@ -218,7 +228,7 @@ class ServerlessVpcPlugin {
     }
 
     if (createBastionHost) {
-      this.serverless.cli.log(`Provisioning bastion host using key pair "${bastionHostKeyName}"`);
+      this.serverless.cli.log(`Provisioning bastion host using key pair "${bastionHostKeyName}"${bastionAllowedIPs ? ` and allowed IPs ${bastionAllowedIPs.join(', ')}` : ''}`);
 
       // @see https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-public-parameters.html#parameter-store-public-parameters-ami
       providerObj.compiledCloudFormationTemplate.Parameters = {
@@ -228,7 +238,7 @@ class ServerlessVpcPlugin {
         },
       };
 
-      Object.assign(resources, await buildBastion(bastionHostKeyName, bastionHostEIP, bastionHostSSHKeys, zones.length));
+      Object.assign(resources, await buildBastion(bastionHostKeyName, bastionHostEIP, bastionHostSSHKeys, bastionAllowedIPs, zones.length));
     }
 
     if (services.length > 0) {
